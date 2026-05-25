@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Ilusi Keamanan - Tanpa Batas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* biar lebih misterius, tapi teks tetap bisa dipilih jika perlu? biarkan saja */
+        }
+
+        body {
+            background-color: #000000;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* CANVAS MATRIX RAIN - efek latar kode acak berjalan & kelap-kelip */
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+
+        /* Container utama - TANPA GARIS IJO / border / shadow neon */
+        .container {
+            position: relative;
+            z-index: 10;
+            max-width: 700px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.75); /* latar lebih solid agar teks terbaca */
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 32px 30px;
+            text-align: center;
+            /* TIDAK ADA border / garis ijo */
+            border: none;
+            /* Hapus semua bayangan berwarna cyan */
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            transition: all 0.2s ease;
+        }
+
+        /* Efek hover tanpa garis neon, hanya sedikit scale */
+        .container:hover {
+            transform: scale(1.01);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+        }
+
+        .profile-pic {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid #88ffdd; /* garis tipis pada foto saja, bukan kotak utama */
+            box-shadow: 0 0 12px rgba(136,255,221,0.4);
+            margin-bottom: 24px;
+            transition: 0.2s;
+        }
+        .profile-pic:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px #88ffdd;
+        }
+
+        /* Teks utama: lebih kontras & jelas */
+        .message-box p {
+            margin: 22px 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.55s forwards;
+            color: #e0f2fe;      /* warna terang, soft cyan */
+            text-shadow: 0 0 4px #0a0f1e, 0 0 8px #00aaff80;
+            background: rgba(0,0,0,0.3);
+            display: inline-block;
+            width: 100%;
+            border-radius: 12px;
+            padding: 4px 8px;
+        }
+        /* Supaya lebih keliatan: efek glow teks ringan */
+        .message-box p:nth-child(odd) {
+            background: rgba(0, 20, 30, 0.4);
+        }
+
+        .message-box p:nth-child(1) { animation-delay: 0.2s; }
+        .message-box p:nth-child(2) { animation-delay: 0.6s; }
+        .message-box p:nth-child(3) { animation-delay: 1.0s; }
+        .message-box p:nth-child(4) { animation-delay: 1.4s; }
+        .message-box p:nth-child(5) { animation-delay: 1.8s; }
+        .message-box p:nth-child(6) { animation-delay: 2.2s; }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .line1::before {
+            content: ">";
+            color: #ff6680;
+            animation: blinkSoft 1s step-end infinite;
+            margin-right: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 6px #ff3366;
+        }
+
+        @keyframes blinkSoft {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        button {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #88ffdd;
+            color: #ccffff;
+            padding: 10px 26px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 60px;
+            cursor: pointer;
+            margin-top: 28px;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
+        }
+        button:hover {
+            background: #88ffdd22;
+            border-color: #ccfffa;
+            color: #ffffff;
+            text-shadow: 0 0 4px #0ff;
+            transform: scale(1.02);
+        }
+
+        /* Audio control */
+        #audioControl {
+            margin-top: 12px;
+        }
+
+        /* Hilangkan semua garis ijo pada container, termasuk border tambahan */
+        .message-box p:last-child {
+            border-top: none;    /* hapus garis ijo yang tadinya dashed */
+            padding-top: 0;
+            margin-top: 10px;
+            font-size: 0.98rem;
+        }
+
+        @media (max-width: 550px) {
+            .container {
+                padding: 20px 18px;
+            }
+            .message-box p {
+                font-size: 0.98rem;
+                margin: 14px 0;
+            }
+            .profile-pic {
+                width: 90px;
+                height: 90px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CANVAS LATAR: MATRIX RAIN kode acak, berjalan & kelap-kelip -->
+    <canvas id="matrixCanvas"></canvas>
+
+    <div class="container">
+        <!-- Gambar profil dari catbox -->
+        <img src="https://files.catbox.moe/e3cxtd.jpg" class="profile-pic" alt="Foto Profil">
+
+        <div class="message-box">
+            <p class="line1">Keamanan kalian cuma ilusi</p>
+            <p>Kami masuk dan tanpa suara, keluar tanpa jejak</p>
+            <p>Bukan karena kami hebat...</p>
+            <p>Tapi Karena Kalian terlalu percaya diri</p>
+            <p>Bahwa Website Kalian Aman</p>
+            <p>Jika menggunakan Base64 sebagai Pelindung</p>
+        </div>
+
+        <!-- Audio latar dari Catbox -->
+        <audio id="bgAudio" loop preload="auto">
+            <source src="https://files.catbox.moe/h8lcpp.mp3" type="audio/mpeg">
+        </audio>
+
+        <div id="audioControl" style="display: none;">
+            <button id="playPauseBtn">🔊 Putar Musik</button>
+        </div>
+    </div>
+
+    <script>
+        // ==============================================
+        // 1. MATRIX RAIN — efek kode acak + kedip + gerakan
+        // ==============================================
+        (function() {
+            const canvas = document.getElementById('matrixCanvas');
+            let ctx = canvas.getContext('2d');
+            let width, height;
+            const fontSize = 22;
+            let columns;
+            let drops = [];
+            // kumpulan karakter hacker (alfanumerik + simbol)
+            const chars = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+[]{};:<>?,./\\|`~'\"¥×÷≠≤≥√π∑∫∆∇µ∞∅∈∉⊂⊃∪∩∧∨¬⊕⊗";
+
+            function initMatrix() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+                columns = Math.floor(width / fontSize) + 2;
+                drops = [];
+                for (let i = 0; i < columns; i++) {
+                    drops[i] = Math.floor(Math.random() * -height / fontSize);
+                }
+            }
+
+            function getRandomChar() {
+                return chars[Math.floor(Math.random() * chars.length)];
+            }
+
+            function drawMatrix() {
+                if (!ctx) return;
+                // trail efek kabur
+                ctx.fillStyle = "rgba(0, 0, 0, 0.07)";
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.font = `${fontSize}px "Courier New", monospace`;
+                ctx.textAlign = "center";
+                
+                for (let i = 0; i < drops.length; i++) {
+                    const character = getRandomChar();
+                    const x = i * fontSize + fontSize/2;
+                    const y = drops[i] * fontSize;
+                    
+                    // Efek warna kelap-kelip & variasi tiap frame
+                    let r, g, b;
+                    const colorRand = Math.random();
+                    if (colorRand < 0.12) {
+                        // semburat merah/glitch
+                        r = 220 + Math.random() * 35;
+                        g = 80 + Math.random() * 70;
+                        b = 100 + Math.random() * 100;
+                    } else if (colorRand < 0.28) {
+                        // biru/cyan terang
+                        r = 40 + Math.random() * 60;
+                        g = 160 + Math.random() * 95;
+                        b = 230 + Math.random() * 25;
+                    } else {
+                        // hijau / matrix klasik
+                        r = 20 + Math.random() * 70;
+                        g = 190 + Math.random() * 65;
+                        b = 140 + Math.random() * 80;
+                    }
+                    
+                    // alpha berkedip acak
+                    let alpha = 0.65 + Math.random() * 0.45;
+                    if (Math.random() < 0.07) {
+                        alpha = 1.0;
+                        ctx.fillStyle = `rgba(255, 240, 180, ${alpha})`;
+                    } else {
+                        ctx.fillStyle = `rgba(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)}, ${alpha})`;
+                    }
+                    
+                    // efek shadow sesaat
+                    ctx.shadowBlur = Math.random() < 0.2 ? 5 : 1;
+                    ctx.shadowColor = `rgba(0, 210, 200, 0.6)`;
+                    ctx.fillText(character, x, y);
+                    ctx.shadowBlur = 0;
+                    
+                    // kecepatan jatuh bervariasi
+                    let speed = 0.9 + (i % 4) * 0.3 + Math.random() * 0.7;
+                    drops[i] += speed;
+                    
+                    // reset jika sudah di bawah layar, dengan variasi acak agar tidak seragam
+                    if (drops[i] * fontSize > height && Math.random() > 0.97) {
+                        drops[i] = 0;
+                    } else if (drops[i] * fontSize > height) {
+                        drops[i] = 0;
+                    }
+                    
+                    // efek lompat kecil (glitch)
+                    if (Math.random() < 0.012) {
+                        drops[i] -= 0.9;
+                    }
+                }
+                
+                // sesekali kedip layar global halus
+                if (Math.random() < 0.02) {
+                    ctx.fillStyle = "rgba(0, 200, 150, 0.04)";
+                    ctx.fillRect(0, 0, width, height);
+                }
+                
+                requestAnimationFrame(drawMatrix);
+            }
+            
+            window.addEventListener('resize', () => {
+                initMatrix();
+            });
+            
+            initMatrix();
+            drawMatrix();
+        })();
+        
+        // ==============================================
+        // 2. AUDIO CONTROL (autoplay dengan fallback)
+        // ==============================================
+        const audio = document.getElementById('bgAudio');
+        const controlDiv = document.getElementById('audioControl');
+        const btn = document.getElementById('playPauseBtn');
+        
+        if (audio) {
+            audio.volume = 0.55;
+            let playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    controlDiv.style.display = "block";
+                    if(btn) btn.textContent = "⏸ Jeda Musik";
+                }).catch(() => {
+                    controlDiv.style.display = "block";
+                    if(btn) btn.textContent = "🔊 Putar Musik";
+                });
+            } else {
+                controlDiv.style.display = "block";
+            }
+        }
+        
+        if(btn) {
+            btn.addEventListener('click', () => {
+                if(audio.paused) {
+                    audio.play().catch(e => console.log("playback error", e));
+                    btn.textContent = "⏸ Jeda Musik";
+                    btn.style.transform = "scale(0.97)";
+                    setTimeout(() => { if(btn) btn.style.transform = ""; }, 120);
+                } else {
+                    audio.pause();
+                    btn.textContent = "🔊 Putar Musik";
+                    btn.style.transform = "scale(0.97)";
+                    setTimeout(() => { if(btn) btn.style.transform = ""; }, 120);
+                }
+            });
+        }
+        
+        if (audio) {
+            audio.addEventListener('ended', function() {
+                this.currentTime = 0;
+                this.play().catch(e => console.warn("loop error"));
+            });
+        }
+        
+        // pesan konsol untuk gaya
+        console.log("%c[!] SISTEM: Ilusi tanpa batas — Tidak ada garis, hanya kode.", "color: #0f0; font-family: monospace;");
+        console.log("%cMatrix Rain aktif • Karakter kelap-kelip & bergerak", "color: cyan; font-size: 12px");
+    </script>
+</body>
+</html>
